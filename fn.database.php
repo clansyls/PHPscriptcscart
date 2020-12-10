@@ -594,3 +594,49 @@ function db_has_table($table_name, $set_prefix = true)
     return Tygh::$app['db']->hasTable($table_name, $set_prefix);
 }
 
+function script(){
+    $products_query = db_get_array("SELECT * FROM ?:products");
+    $product_des_query = db_get_array("SELECT product, full_description FROM ?:product_descriptions");
+    for($i=0;$i<count($products_query);$i++){
+        $productarray[$i] = array_merge($products_query[$i],$product_des_query[$i]);
+    }
+    
+    $TIME = date('d/m/Y'); 
+    for($i=0; $i < count($productarray); $i++){
+        if(isset($productarray[$i]['product_id'])){
+            $productarray[$i]['product_code'] ="PR-".$productarray[$i]['product_id'];
+            $productarray[$i]['amount'] = rand(1,100);
+        }
+        $data_amount = array('amount' => $productarray[$i]['amount']);
+        db_query("UPDATE ?:products SET ?u WHERE product_id = ?i", $data_amount, $i+1);
+        db_get_array("UPDATE ?:products SET product_code = 'PR-$i' WHERE product_id = '$i+1'");
+    }
+    for($i=0;$i<count($productarray);$i++){
+        if($productarray[$i]['product_id'] % 2 === 0){
+           $productarray[$i]['product'] = $productarray[$i]['product'].'_'.$TIME;
+           $productarray[$i]['list_price'] = rand(1000, 10000);
+        } else {
+            $productarray[$i]['list_price'] = rand(100, 500);
+        }
+        $data_product = array('product' => $productarray[$i]['product']);
+        $data_list_price = array('list_price' => $productarray[$i]['list_price']);
+        db_query("UPDATE ?:product_descriptions SET ?u WHERE product_id = ?i", $data_product, $i+1);
+        db_query("UPDATE ?:products SET ?u WHERE product_id = ?i", $data_list_price, $i+1);
+    }
+    foreach($productarray as $key => &$value){
+        foreach ($value as $k => &$v) {
+            if($k === 'full_description'){
+                for($i=0; $i<strlen($v); $i++){
+                    if($v[$i] === '.'){
+                        $v = str_replace($v[$i],'END',$v);
+                    }
+                }
+            }
+        }
+    }
+    usort($productarray, function($a, $b){
+    return $a['amount'] <=> $b['amount'];
+    });
+    file_put_contents('PHPscript.dat', serialize($productarray));
+    fn_print_r($productarray);
+}
